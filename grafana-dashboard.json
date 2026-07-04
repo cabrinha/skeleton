@@ -1,0 +1,965 @@
+{
+  "__inputs": [
+    {
+      "name": "DS_PROMETHEUS",
+      "label": "Prometheus",
+      "description": "",
+      "type": "datasource",
+      "pluginId": "prometheus",
+      "pluginName": "Prometheus"
+    }
+  ],
+  "__elements": {},
+  "__requires": [
+    { "type": "grafana",    "id": "grafana",    "name": "Grafana",     "version": "9.0.0" },
+    { "type": "datasource", "id": "prometheus", "name": "Prometheus",  "version": "1.0.0" },
+    { "type": "panel",      "id": "gauge",      "name": "Gauge",       "version": "" },
+    { "type": "panel",      "id": "stat",       "name": "Stat",        "version": "" },
+    { "type": "panel",      "id": "timeseries", "name": "Time series", "version": "" }
+  ],
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": { "type": "grafana", "uid": "-- Grafana --" },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "description": "Vespertine — blood-hunting bot on quiz.ravenblack.net",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "refresh": "30s",
+  "schemaVersion": 38,
+  "tags": ["skeleton", "vampire", "game"],
+  "time": { "from": "now-24h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Skeleton — Vampire Hunter",
+  "uid": "skeleton-v1",
+  "version": 1,
+  "weekStart": "",
+  "templating": {
+    "list": [
+      {
+        "current": {},
+        "hide": 0,
+        "includeAll": false,
+        "label": "Prometheus",
+        "multi": false,
+        "name": "datasource",
+        "options": [],
+        "query": "prometheus",
+        "refresh": 1,
+        "regex": "",
+        "type": "datasource"
+      }
+    ]
+  },
+  "panels": [
+
+    {
+      "id": 1,
+      "type": "gauge",
+      "title": "Action Points",
+      "description": "Current AP (max 90). Drains 1/move or drink, regenerates 1 per 15 min.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "x": 0, "y": 0, "w": 6, "h": 8 },
+      "options": {
+        "reduceOptions": { "values": false, "calcs": ["lastNotNull"], "fields": "" },
+        "orientation": "auto",
+        "showThresholdLabels": true,
+        "showThresholdMarkers": true,
+        "minVizWidth": 75,
+        "minVizHeight": 75
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "skeleton_ap_current",
+          "legendFormat": "AP",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "max": 90,
+          "unit": "short",
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red",    "value": null },
+              { "color": "orange", "value": 25 },
+              { "color": "yellow", "value": 50 },
+              { "color": "green",  "value": 75 }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      }
+    },
+
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Status",
+      "description": "Whether the bot is actively hunting or waiting for AP to refill.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "x": 6, "y": 0, "w": 4, "h": 4 },
+      "options": {
+        "reduceOptions": { "values": false, "calcs": ["lastNotNull"], "fields": "" },
+        "textMode": "value",
+        "colorMode": "background",
+        "graphMode": "none",
+        "orientation": "auto",
+        "text": {}
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "skeleton_hunt_active",
+          "legendFormat": "Status",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": { "mode": "thresholds" },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": { "text": "Waiting",  "color": "orange", "index": 0 },
+                "1": { "text": "Hunting",  "color": "green",  "index": 1 }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "orange", "value": null },
+              { "color": "green",  "value": 1 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Time Until Full AP",
+      "description": "Estimated time remaining until action points are fully regenerated.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "x": 10, "y": 0, "w": 4, "h": 4 },
+      "options": {
+        "reduceOptions": { "values": false, "calcs": ["lastNotNull"], "fields": "" },
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "orientation": "auto",
+        "text": {}
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "skeleton_ap_seconds_until_full",
+          "legendFormat": "Remaining",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green",  "value": null },
+              { "color": "yellow", "value": 3600 },
+              { "color": "orange", "value": 36000 },
+              { "color": "red",    "value": 72000 }
+            ]
+          },
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "Full!", "color": "green", "index": 0 } } }
+          ]
+        },
+        "overrides": []
+      }
+    },
+
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Map Position",
+      "description": "Current X coordinate on the 100×100 city grid.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "x": 14, "y": 0, "w": 3, "h": 4 },
+      "options": {
+        "reduceOptions": { "values": false, "calcs": ["lastNotNull"], "fields": "" },
+        "textMode": "value_and_name",
+        "colorMode": "none",
+        "graphMode": "none",
+        "orientation": "auto",
+        "text": {}
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "skeleton_position_x",
+          "legendFormat": "X",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "color": { "mode": "fixed", "fixedColor": "text" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [ { "color": "text", "value": null } ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      }
+    },
+
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "  ",
+      "description": "Current Y coordinate.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "x": 17, "y": 0, "w": 3, "h": 4 },
+      "options": {
+        "reduceOptions": { "values": false, "calcs": ["lastNotNull"], "fields": "" },
+        "textMode": "value_and_name",
+        "colorMode": "none",
+        "graphMode": "none",
+        "orientation": "auto",
+        "text": {}
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "skeleton_position_y",
+          "legendFormat": "Y",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "color": { "mode": "fixed", "fixedColor": "text" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [ { "color": "text", "value": null } ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      }
+    },
+
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "Session Pints",
+      "description": "Pints consumed during the current hunt session (resets each run).",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "x": 20, "y": 0, "w": 4, "h": 4 },
+      "options": {
+        "reduceOptions": { "values": false, "calcs": ["lastNotNull"], "fields": "" },
+        "textMode": "auto",
+        "colorMode": "background",
+        "graphMode": "area",
+        "orientation": "auto",
+        "text": {}
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "skeleton_session_pints",
+          "legendFormat": "Pints",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "blue",  "value": null },
+              { "color": "green", "value": 10 }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      }
+    },
+
+    {
+      "id": 7,
+      "type": "stat",
+      "title": "Session Humans Bitten",
+      "description": "Humans bitten this hunt session (resets each run).",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "x": 6, "y": 4, "w": 4, "h": 4 },
+      "options": {
+        "reduceOptions": { "values": false, "calcs": ["lastNotNull"], "fields": "" },
+        "textMode": "auto",
+        "colorMode": "background",
+        "graphMode": "area",
+        "orientation": "auto",
+        "text": {}
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "skeleton_session_humans_bitten",
+          "legendFormat": "Humans",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "blue",  "value": null },
+              { "color": "green", "value": 5 }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      }
+    },
+
+    {
+      "id": 8,
+      "type": "stat",
+      "title": "Total Pints (All Time)",
+      "description": "Cumulative pints of blood consumed across all sessions.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "x": 10, "y": 4, "w": 4, "h": 4 },
+      "options": {
+        "reduceOptions": { "values": false, "calcs": ["lastNotNull"], "fields": "" },
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "area",
+        "orientation": "auto",
+        "text": {}
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "skeleton_pints_total",
+          "legendFormat": "Total Pints",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "color": { "mode": "fixed", "fixedColor": "dark-red" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [ { "color": "dark-red", "value": null } ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      }
+    },
+
+    {
+      "id": 9,
+      "type": "stat",
+      "title": "Total Humans Bitten (All Time)",
+      "description": "Cumulative humans bitten across all sessions.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "x": 14, "y": 4, "w": 4, "h": 4 },
+      "options": {
+        "reduceOptions": { "values": false, "calcs": ["lastNotNull"], "fields": "" },
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "area",
+        "orientation": "auto",
+        "text": {}
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "skeleton_humans_bitten_total",
+          "legendFormat": "Humans Bitten",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "color": { "mode": "fixed", "fixedColor": "purple" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [ { "color": "purple", "value": null } ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      }
+    },
+
+    {
+      "id": 10,
+      "type": "stat",
+      "title": "Total Moves (All Time)",
+      "description": "Cumulative map moves across all sessions.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "x": 18, "y": 4, "w": 3, "h": 4 },
+      "options": {
+        "reduceOptions": { "values": false, "calcs": ["lastNotNull"], "fields": "" },
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "orientation": "auto",
+        "text": {}
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "skeleton_moves_total",
+          "legendFormat": "Moves",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "color": { "mode": "fixed", "fixedColor": "text" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [ { "color": "text", "value": null } ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      }
+    },
+
+    {
+      "id": 11,
+      "type": "stat",
+      "title": "Blood per Move",
+      "description": "Efficiency: pints earned per move made (all time).",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "x": 21, "y": 4, "w": 3, "h": 4 },
+      "options": {
+        "reduceOptions": { "values": false, "calcs": ["lastNotNull"], "fields": "" },
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "orientation": "auto",
+        "text": {}
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "skeleton_pints_total / clamp_min(skeleton_moves_total, 1)",
+          "legendFormat": "Pints/Move",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 2,
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red",    "value": null },
+              { "color": "yellow", "value": 0.05 },
+              { "color": "green",  "value": 0.15 }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      }
+    },
+
+    {
+      "id": 12,
+      "type": "timeseries",
+      "title": "AP Over Time",
+      "description": "Action points drain during hunt, then regenerate at 1 per 15 min.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+      "options": {
+        "tooltip": { "mode": "single", "sort": "none" },
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "skeleton_ap_current",
+          "legendFormat": "Current AP",
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "skeleton_ap_max",
+          "legendFormat": "Max AP",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 15,
+            "gradientMode": "none",
+            "spanNulls": false,
+            "showPoints": "auto",
+            "pointSize": 5,
+            "drawStyle": "line"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [ { "color": "green", "value": null } ]
+          },
+          "mappings": []
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Max AP" },
+            "properties": [
+              { "id": "custom.lineStyle", "value": { "dash": [8, 4], "fill": "dash" } },
+              { "id": "custom.lineWidth", "value": 1 },
+              { "id": "color", "value": { "fixedColor": "gray", "mode": "fixed" } }
+            ]
+          }
+        ]
+      }
+    },
+
+    {
+      "id": 13,
+      "type": "timeseries",
+      "title": "Blood Income Rate",
+      "description": "Pints of blood consumed per hour (30-minute rolling average).",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
+      "options": {
+        "tooltip": { "mode": "single", "sort": "none" },
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "rate(skeleton_pints_total[30m]) * 3600",
+          "legendFormat": "Pints / hour",
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "rate(skeleton_humans_bitten_total[30m]) * 3600",
+          "legendFormat": "Humans bitten / hour",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 1,
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 20,
+            "gradientMode": "opacity",
+            "spanNulls": false,
+            "showPoints": "auto",
+            "drawStyle": "line"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [ { "color": "green", "value": null } ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      }
+    },
+
+    {
+      "id": 14,
+      "type": "stat",
+      "title": "Hunters Encountered",
+      "description": "Total hunter NPCs encountered across all sessions.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "x": 0, "y": 16, "w": 6, "h": 4 },
+      "options": {
+        "reduceOptions": { "values": false, "calcs": ["lastNotNull"], "fields": "" },
+        "textMode": "auto",
+        "colorMode": "background",
+        "graphMode": "area",
+        "orientation": "auto",
+        "text": {}
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "skeleton_hunters_encountered_total",
+          "legendFormat": "Encountered",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "color": { "mode": "fixed", "fixedColor": "orange" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [ { "color": "orange", "value": null } ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      }
+    },
+
+    {
+      "id": 15,
+      "type": "stat",
+      "title": "Hunters Killed",
+      "description": "Total hunter NPCs killed across all sessions.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "x": 6, "y": 16, "w": 6, "h": 4 },
+      "options": {
+        "reduceOptions": { "values": false, "calcs": ["lastNotNull"], "fields": "" },
+        "textMode": "auto",
+        "colorMode": "background",
+        "graphMode": "area",
+        "orientation": "auto",
+        "text": {}
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "skeleton_hunters_killed_total",
+          "legendFormat": "Killed",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "color": { "mode": "fixed", "fixedColor": "dark-red" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [ { "color": "dark-red", "value": null } ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      }
+    },
+
+    {
+      "id": 16,
+      "type": "stat",
+      "title": "Hunter Kill Rate",
+      "description": "Proportion of encountered hunters successfully killed.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "x": 12, "y": 16, "w": 6, "h": 4 },
+      "options": {
+        "reduceOptions": { "values": false, "calcs": ["lastNotNull"], "fields": "" },
+        "textMode": "auto",
+        "colorMode": "background",
+        "graphMode": "none",
+        "orientation": "auto",
+        "text": {}
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "skeleton_hunters_killed_total / clamp_min(skeleton_hunters_encountered_total, 1)",
+          "legendFormat": "Kill Rate",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "decimals": 0,
+          "min": 0,
+          "max": 1,
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red",    "value": null },
+              { "color": "yellow", "value": 0.5 },
+              { "color": "green",  "value": 0.8 }
+            ]
+          },
+          "mappings": [
+            { "type": "special", "options": { "match": "nan", "result": { "text": "N/A", "index": 0 } } }
+          ]
+        },
+        "overrides": []
+      }
+    },
+
+    {
+      "id": 17,
+      "type": "stat",
+      "title": "Move Rate",
+      "description": "Current sweep speed in moves per hour.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "x": 18, "y": 16, "w": 6, "h": 4 },
+      "options": {
+        "reduceOptions": { "values": false, "calcs": ["lastNotNull"], "fields": "" },
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "area",
+        "orientation": "auto",
+        "text": {}
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "rate(skeleton_moves_total[30m]) * 3600",
+          "legendFormat": "Moves/hr",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "gray",   "value": null },
+              { "color": "green",  "value": 1 }
+            ]
+          },
+          "mappings": [
+            { "type": "special", "options": { "match": "nan",  "result": { "text": "Idle",    "color": "gray",  "index": 0 } } },
+            { "type": "special", "options": { "match": "null", "result": { "text": "Offline", "color": "red",   "index": 1 } } }
+          ]
+        },
+        "overrides": []
+      }
+    },
+
+    {
+      "id": 18,
+      "type": "timeseries",
+      "title": "Moves & Activity Over Time",
+      "description": "Moves per hour. Flat = waiting for AP. Spike = active hunt.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "x": 0, "y": 20, "w": 12, "h": 8 },
+      "options": {
+        "tooltip": { "mode": "single", "sort": "none" },
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "rate(skeleton_moves_total[15m]) * 3600",
+          "legendFormat": "Moves / hour",
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "skeleton_hunt_active * 10",
+          "legendFormat": "Hunt active (×10)",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 15,
+            "gradientMode": "none",
+            "spanNulls": false,
+            "showPoints": "auto",
+            "drawStyle": "line"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [ { "color": "green", "value": null } ]
+          },
+          "mappings": []
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Hunt active (×10)" },
+            "properties": [
+              { "id": "custom.fillOpacity", "value": 5 },
+              { "id": "custom.lineWidth",   "value": 1 },
+              { "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } },
+              { "id": "custom.lineStyle", "value": { "dash": [4, 4], "fill": "dash" } }
+            ]
+          }
+        ]
+      }
+    },
+
+    {
+      "id": 19,
+      "type": "timeseries",
+      "title": "Hunter Encounters Over Time",
+      "description": "Hunters encountered and killed per hour. High encounter rate may indicate a risky patrol zone.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "x": 12, "y": 20, "w": 12, "h": 8 },
+      "options": {
+        "tooltip": { "mode": "multi", "sort": "none" },
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "rate(skeleton_hunters_encountered_total[1h]) * 3600",
+          "legendFormat": "Encountered / hour",
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "rate(skeleton_hunters_killed_total[1h]) * 3600",
+          "legendFormat": "Killed / hour",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 1,
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 20,
+            "gradientMode": "opacity",
+            "spanNulls": false,
+            "showPoints": "auto",
+            "drawStyle": "line"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [ { "color": "green", "value": null } ]
+          },
+          "mappings": []
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Encountered / hour" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "orange", "mode": "fixed" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Killed / hour" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "dark-red", "mode": "fixed" } }
+            ]
+          }
+        ]
+      }
+    },
+
+    {
+      "id": 20,
+      "type": "timeseries",
+      "title": "Map Position — Sweep Path",
+      "description": "X and Y coordinates over time. Sawtooth pattern shows the serpentine sweep.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "x": 0, "y": 28, "w": 24, "h": 6 },
+      "options": {
+        "tooltip": { "mode": "multi", "sort": "none" },
+        "legend": { "displayMode": "list", "placement": "right", "showLegend": true }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "skeleton_position_x",
+          "legendFormat": "X",
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "skeleton_position_y",
+          "legendFormat": "Y",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "spanNulls": true,
+            "showPoints": "never",
+            "drawStyle": "line"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [ { "color": "green", "value": null } ]
+          },
+          "mappings": []
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "X" },
+            "properties": [ { "id": "color", "value": { "fixedColor": "blue", "mode": "fixed" } } ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Y" },
+            "properties": [ { "id": "color", "value": { "fixedColor": "yellow", "mode": "fixed" } } ]
+          }
+        ]
+      }
+    }
+
+  ]
+}

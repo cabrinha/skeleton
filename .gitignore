@@ -1,0 +1,12 @@
+.env
+.cookies
+.cookies.json
+*.cookies.json
+__pycache__/
+*.pyc
+.venv/
+
+# Node / TypeScript
+node_modules/
+dist/
+*.log
