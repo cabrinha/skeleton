@@ -1,8 +1,8 @@
 .env
 .cookies
-.venv/
-__pycache__/
-*.pyc
+.cookies.json
+node_modules/
+dist/
 *.png
 *.pdf
 .git/

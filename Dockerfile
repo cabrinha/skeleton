@@ -1,30 +1,31 @@
-FROM python:3.12-slim
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        tesseract-ocr \
-    && rm -rf /var/lib/apt/lists/*
+# --- build stage: compile TypeScript -> dist/ ---
+FROM node:20-slim AS build
 
 WORKDIR /app
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir \
-        requests \
-        beautifulsoup4 \
-        python-dotenv \
-        Pillow \
-        pytesseract \
-        numpy \
-        prometheus_client
+COPY package.json package-lock.json ./
+RUN npm ci
 
-COPY skeleton.py .
+COPY tsconfig.json ./
+COPY src ./src
+RUN npm run build
 
-ENV PYTHONUNBUFFERED=1 \
-    COOKIE_FILE=/data/.cookies \
+# --- runtime stage: production deps + compiled JS ---
+FROM node:20-slim
+
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev && npm cache clean --force
+
+COPY --from=build /app/dist ./dist
+
+ENV NODE_ENV=production \
+    COOKIE_FILE=/data/.cookies.json \
     METRICS_PORT=8080 \
     WAIT_FOR_FULL_AP=true \
-    SINGLE_RUN=true \
-    SWEEP_WIDTH=15
+    SINGLE_RUN=true
 
 EXPOSE 8080
 
-ENTRYPOINT ["python", "skeleton.py"]
+ENTRYPOINT ["node", "dist/main.js"]
