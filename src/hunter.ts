@@ -2,6 +2,7 @@ import { Bot } from './bot.js';
 import { type PageState, type CellInfo } from './parser.js';
 import { metrics } from './metrics.js';
 import { logEvent } from './db.js';
+import { locationName } from './location.js';
 import { AP_SECS_PER_TICK, MAP_SIZE, SWEEP_DELAY_MS, SINGLE_RUN } from './config.js';
 
 export class Hunter {
@@ -37,7 +38,7 @@ export class Hunter {
 
     for (const target of cell.drinkTargets) {
       if (drained.has(target.name)) continue;
-      this.log(`Drinking from '${target.name}' (${target.method})`);
+      this.log(`Drinking from '${target.name}' (${target.method}) at ${locationName(x, y)}`);
       const { state: next, pints } = await this.bot.drink(target, state.zToken);
       drained.add(target.name);
       if (pints === 0) {
@@ -117,8 +118,8 @@ export class Hunter {
       const cd = this.drainedAt(cell.coord.x, cell.coord.y);
       const avH = cell.humans.filter(n => !cd.has(n)).length;
       const avV = cell.vampires.filter(n => !cd.has(n)).length;
-      const tag = cell.isCurrent ? `[${cell.coord.x},${cell.coord.y}]` : `(${cell.coord.x},${cell.coord.y})`;
-      rows.push(`  ${tag} ${v}v/${h}h  (${avV}v/${avH}h available)`);
+      const here = cell.isCurrent ? '*' : ' ';
+      rows.push(`  ${here} ${locationName(cell.coord.x, cell.coord.y)}  ${v}v/${h}h  (${avV}v/${avH}h available)`);
     }
     if (rows.length) this.log('Visible:\n' + rows.join('\n'));
   }
@@ -165,7 +166,7 @@ export class Hunter {
       const avH = target.humans.filter(n => !cd.has(n)).length;
       const avV = target.vampires.filter(n => !cd.has(n)).length;
       const tx = target.coord.x, ty = target.coord.y;
-      this.log(`Best target (${tx},${ty}) [${avH}h/${avV}v] — moving there`);
+      this.log(`Best target ${locationName(tx, ty)} [${avH}h/${avV}v] — moving there`);
       const next = await this.bot.move(tx, ty);
       metrics.movesTotal.inc();
       if (next.position.x !== x || next.position.y !== y) {
@@ -181,13 +182,13 @@ export class Hunter {
 
     // 4. Sweep diagonally NE/SE/NW/SW
     const { x: nx, y: ny } = this.nextSweepPos(x, y);
-    this.log(`Sweeping → (${nx},${ny})  AP=${state.ap}`);
+    this.log(`Sweeping → ${locationName(nx, ny)}  AP=${state.ap}`);
     const next = await this.bot.move(nx, ny);
     metrics.movesTotal.inc();
 
     if (next.position.x === x && next.position.y === y) {
       // Move rejected by server (City Limits) — reverse x direction
-      this.log(`Hit city edge at (${x},${y}) — reversing direction`);
+      this.log(`Hit city edge at ${locationName(x, y)} — reversing direction`);
       this.dirX *= -1;
     } else {
       metrics.posX.set(next.position.x);
@@ -222,7 +223,7 @@ export class Hunter {
       metrics.posX.set(x);
       metrics.posY.set(y);
 
-      this.log(`AP=${ap}/${maxAp}  pos=(${x},${y})`);
+      this.log(`AP=${ap}/${maxAp}  at ${locationName(x, y)}`);
 
       if (ap <= 0) {
         metrics.hunting.set(0);

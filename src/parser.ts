@@ -72,6 +72,7 @@ export function parsePage(html: string, selfName: string): PageState {
 
   table.find('td').each((_, td) => {
     const $td = $(td);
+    const cellClass = ($td.attr('class') ?? 'unknown').split(' ')[0];
     const xInp = $td.find('input[name="x"]').first();
 
     let x: number, y: number, isCurrent: boolean;
@@ -80,11 +81,17 @@ export function parsePage(html: string, selfName: string): PageState {
       y = parseInt($td.find('input[name="y"]').first().val() as string, 10);
       isCurrent = false;
     } else {
+      // No move form. This is either the cell we're standing in (holds our
+      // <b>Name</b> plus any target) OR a City Limits cell at the map edge.
+      // City Limits cells ALSO lack a move form, so without this guard every one
+      // of them collapses onto the current-cell key (cx,cy) and the last-written
+      // empty edge cell clobbers the real current cell — wiping out any human /
+      // drink target on it. That is why targets got "seen but not drunk" at edges.
+      if (cellClass === 'cityblock' || /City Limits/i.test($td.text())) return;
       x = cx; y = cy; isCurrent = true;
     }
 
     const intersectionName = $td.find('span.intersect').first().text().trim() || null;
-    const cellClass = ($td.attr('class') ?? 'unknown').split(' ')[0];
 
     // Other vampires via viewvamp links (excluding self)
     const vampires: string[] = [];

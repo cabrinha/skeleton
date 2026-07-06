@@ -17,6 +17,7 @@ Plays as **Vespertine**. TypeScript/Node.js, ESM, `tsx` for dev.
 ## HTML quirks (critical for parsing)
 
 - **Current cell**: the center `<td>` with **no** `input[name="x"]`. Contains `<b>VampireName</b>`.
+- **City Limits cells**: `<td class="cityblock">` at map edges ALSO have no `input[name="x"]`. The parser must skip them (by class or `(City Limits)` text) — otherwise every one collapses onto the current-cell key `(cx,cy)` and an empty edge cell clobbers the real current cell, wiping out its human/drink target. This was the "seen but not drunk near the border" bug.
 - **Adjacent cells**: have a move form with `input[name="x"]` and `input[name="y"]`.
 - **Vampire in cell**: `<a href*="viewvamp=Name">` link + drink GET link with `action=drink&target=Name`.
 - **Human in current cell**: `<span class="human">Human</span>` + POST form with `input[name="action" value="drink"]` and `input[name="t" value="0|0"]`.
@@ -43,6 +44,7 @@ Plays as **Vespertine**. TypeScript/Node.js, ESM, `tsx` for dev.
 | `src/session.ts` | axios + tough-cookie HTTP client, cookie persistence, anti-bot solver |
 | `src/bot.ts` | Login, move, drink, fight — all return `PageState` |
 | `src/parser.ts` | Cheerio HTML → `PageState` + `CellInfo` grid |
+| `src/location.ts` | `(x,y)` → street name (e.g. `Zestless & 2nd`) for logs. Odd x → `STREET_NAMES[(x-1)/2]`, odd y → `(y+1)/2`. Verified vs live `span.intersect` labels; NOT city-crawler's off-by-one formula. |
 | `src/hunter.ts` | Sweep logic, target scoring, AP sleep, drained tracking |
 | `src/db.ts` | Optional PostgreSQL logging (`skeleton_hunt_log` table only) |
 | `src/metrics.ts` | Prometheus metrics server on `:8080` |
