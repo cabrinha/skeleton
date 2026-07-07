@@ -8,9 +8,9 @@ Plays as **Vespertine**. TypeScript/Node.js, ESM, `tsx` for dev.
 - **Map**: 200×200 grid, coordinates 1–200 on each axis. City Limits at edges (can't enter).
 - **AP**: max 90, 1 AP per 15 min. Every move or drink costs 1 AP.
 - **Targets**:
-  - Vampires: drink via GET `?action=drink&target=Name&z=TOKEN` (z-token required)
-  - Humans: drink via POST `action=drink&t=0|0` (NOT `target=`, it's `t=`)
-- **Per-cell drain**: once you've drunk from a target, they're "drained" at that position until they move. Track this to avoid retry loops.
+  - Vampires: drink via GET `?action=drink&target=Name&z=TOKEN` (z-token required). Uniquely named, so dedup drained ones by name.
+  - Humans: drink via POST `action=drink&t=0|0` (NOT `target=`, it's `t=`). **Every** co-located human uses the identical `t=0|0` form — there is NO unique per-human id. So a cell with N humans still yields one drink target; you must drink `t=0|0` repeatedly (re-parsing the grid the drink response returns) until a drink yields 0 pints, which means all humans in the cell are dry.
+- **Per-cell drain**: once you've drunk from a target, they're "drained" at that position until they move. Track this to avoid retry loops. Vampires: track by name. Humans: track with a per-cell `HUMANS_DRAINED` sentinel (they can't be name-deduped) — set it when a drink returns 0 pints. `cellScore`/adjacent-target checks must honour this sentinel, else drained humans keep scoring as "available" and the bot oscillates back onto them, burning AP (the `(172,12) ⇄ (173,11)` loop bug).
 - **Hunters**: enemy vampires with fight links — fight before sweeping.
 - **Z-token**: session CSRF token in all nav links (`?z=...`). Required for GET drink, not for POST moves.
 
