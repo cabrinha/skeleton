@@ -1,13 +1,20 @@
 import { Bot } from './bot.js';
-import { type PageState, type CellInfo } from './parser.js';
+import { type PageState, type CellInfo, type DrinkTarget } from './parser.js';
 import { metrics } from './metrics.js';
 import { logEvent } from './db.js';
+import { locationName } from './location.js';
 import { AP_SECS_PER_TICK, MAP_SIZE, SWEEP_DELAY_MS, SINGLE_RUN } from './config.js';
+
+// Sentinel stored in a cell's drained-set once every human there is dry. Humans
+// all share the POST form `t=0|0`, so they have no unique name to dedup on — we
+// track "this cell's humans are drained" as a whole instead. Prefixed with a NUL
+// so it can never collide with a real vampire name.
+const HUMANS_DRAINED = '\u0000humans-drained';
 
 export class Hunter {
   private dirX = 1;  // +1 = east, -1 = west
   private dirY = -1; // -1 = NE (y decreasing), +1 = SE (y increasing)
-  private drained = new Map<string, Set<string>>(); // "x,y" → drained target names
+  private drained = new Map<string, Set<string>>(); // "x,y" → drained vampire names + HUMANS_DRAINED
 
   constructor(private readonly bot: Bot) {}
 
@@ -29,21 +36,42 @@ export class Hunter {
     return { x: x + this.dirX, y: ny };
   }
 
-  private async drinkAll(state: PageState): Promise<void> {
-    const { x, y } = state.position;
-    const drained = this.drainedAt(x, y);
-    const cell = state.grid.get(`${x},${y}`);
-    if (!cell) return;
+  // True if this drink target should be skipped as already-drained. Vampires dedup
+  // by their unique name; humans (POST `t=0|0`) share one name, so they're gated by
+  // the per-cell HUMANS_DRAINED sentinel instead.
+  private isDrained(drained: Set<string>, t: DrinkTarget): boolean {
+    return t.method === 'post' ? drained.has(HUMANS_DRAINED) : drained.has(t.name);
+  }
 
-    for (const target of cell.drinkTargets) {
-      if (drained.has(target.name)) continue;
-      this.log(`Drinking from '${target.name}' (${target.method})`);
-      const { state: next, pints } = await this.bot.drink(target, state.zToken);
-      drained.add(target.name);
+  private async drinkAll(state: PageState): Promise<void> {
+    let cur = state;
+    const { x, y } = cur.position;      // drinking never moves us
+    const drained = this.drainedAt(x, y);
+    const key = `${x},${y}`;
+
+    // Re-inspect the cell after every drink (the drink response carries a fresh
+    // grid). Vampires are drunk once each; humans are drunk repeatedly — each POST
+    // `t=0|0` drains one of possibly several humans in the cell — until a drink
+    // yields 0 pints (all dry). The iteration cap is a safety net against any page
+    // that keeps offering a form we can't clear.
+    for (let i = 0; i < 30; i++) {
+      const cell = cur.grid.get(key);
+      if (!cell) return;
+
+      const target = cell.drinkTargets.find(t => !this.isDrained(drained, t));
+      if (!target) return;
+
+      this.log(`Drinking from '${target.name}' (${target.method}) at ${locationName(x, y)}`);
+      const { state: next, pints } = await this.bot.drink(target, cur.zToken);
+      cur = next;
+      if (target.method === 'get') drained.add(target.name); // this vampire is now dry
+
       if (pints === 0) {
         this.log(`  → already drained`);
+        if (target.method === 'post') drained.add(HUMANS_DRAINED); // no more drinkable humans here
         continue;
       }
+
       this.log(`  → got ${pints} pint(s)`);
       metrics.pintsTotal.inc(pints);
       metrics.humansBitten.inc();
@@ -101,10 +129,18 @@ export class Hunter {
     }
   }
 
-  private cellScore(cell: CellInfo): number {
+  // Count of still-drinkable humans / vampires in a cell, given what we've drained.
+  private availableTargets(cell: CellInfo): { h: number; v: number } {
     const cd = this.drainedAt(cell.coord.x, cell.coord.y);
-    const h = cell.humans.filter(n => !cd.has(n)).length;
+    // Humans can't be deduped by name (all "Human"); once the cell is drained the
+    // sentinel zeroes them out, otherwise every visible human still counts.
+    const h = cd.has(HUMANS_DRAINED) ? 0 : cell.humans.length;
     const v = cell.vampires.filter(n => !cd.has(n)).length;
+    return { h, v };
+  }
+
+  private cellScore(cell: CellInfo): number {
+    const { h, v } = this.availableTargets(cell);
     // Humans weighted heavier — clusters of them are the main food source
     return h * 10 + v * 3;
   }
@@ -114,11 +150,9 @@ export class Hunter {
     for (const cell of state.grid.values()) {
       const h = cell.humans.length, v = cell.vampires.length;
       if (!h && !v) continue;
-      const cd = this.drainedAt(cell.coord.x, cell.coord.y);
-      const avH = cell.humans.filter(n => !cd.has(n)).length;
-      const avV = cell.vampires.filter(n => !cd.has(n)).length;
-      const tag = cell.isCurrent ? `[${cell.coord.x},${cell.coord.y}]` : `(${cell.coord.x},${cell.coord.y})`;
-      rows.push(`  ${tag} ${v}v/${h}h  (${avV}v/${avH}h available)`);
+      const { h: avH, v: avV } = this.availableTargets(cell);
+      const here = cell.isCurrent ? '*' : ' ';
+      rows.push(`  ${here} ${locationName(cell.coord.x, cell.coord.y)}  ${v}v/${h}h  (${avV}v/${avH}h available)`);
     }
     if (rows.length) this.log('Visible:\n' + rows.join('\n'));
   }
@@ -148,7 +182,7 @@ export class Hunter {
     const current = state.grid.get(`${x},${y}`);
 
     // 1. Drink available targets in current cell
-    const available = current?.drinkTargets.filter(t => !drained.has(t.name)) ?? [];
+    const available = current?.drinkTargets.filter(t => !this.isDrained(drained, t)) ?? [];
     if (available.length) {
       await this.drinkAll(state);
       return;
@@ -161,11 +195,9 @@ export class Hunter {
     this.logGrid(state);
     const target = this.findBestAdjacentTarget(state, x, y);
     if (target) {
-      const cd = this.drainedAt(target.coord.x, target.coord.y);
-      const avH = target.humans.filter(n => !cd.has(n)).length;
-      const avV = target.vampires.filter(n => !cd.has(n)).length;
+      const { h: avH, v: avV } = this.availableTargets(target);
       const tx = target.coord.x, ty = target.coord.y;
-      this.log(`Best target (${tx},${ty}) [${avH}h/${avV}v] — moving there`);
+      this.log(`Best target ${locationName(tx, ty)} [${avH}h/${avV}v] — moving there`);
       const next = await this.bot.move(tx, ty);
       metrics.movesTotal.inc();
       if (next.position.x !== x || next.position.y !== y) {
@@ -181,13 +213,13 @@ export class Hunter {
 
     // 4. Sweep diagonally NE/SE/NW/SW
     const { x: nx, y: ny } = this.nextSweepPos(x, y);
-    this.log(`Sweeping → (${nx},${ny})  AP=${state.ap}`);
+    this.log(`Sweeping → ${locationName(nx, ny)}  AP=${state.ap}`);
     const next = await this.bot.move(nx, ny);
     metrics.movesTotal.inc();
 
     if (next.position.x === x && next.position.y === y) {
       // Move rejected by server (City Limits) — reverse x direction
-      this.log(`Hit city edge at (${x},${y}) — reversing direction`);
+      this.log(`Hit city edge at ${locationName(x, y)} — reversing direction`);
       this.dirX *= -1;
     } else {
       metrics.posX.set(next.position.x);
@@ -222,7 +254,7 @@ export class Hunter {
       metrics.posX.set(x);
       metrics.posY.set(y);
 
-      this.log(`AP=${ap}/${maxAp}  pos=(${x},${y})`);
+      this.log(`AP=${ap}/${maxAp}  at ${locationName(x, y)}`);
 
       if (ap <= 0) {
         metrics.hunting.set(0);

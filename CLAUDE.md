@@ -8,21 +8,22 @@ Plays as **Vespertine**. TypeScript/Node.js, ESM, `tsx` for dev.
 - **Map**: 200×200 grid, coordinates 1–200 on each axis. City Limits at edges (can't enter).
 - **AP**: max 90, 1 AP per 15 min. Every move or drink costs 1 AP.
 - **Targets**:
-  - Vampires: drink via GET `?action=drink&target=Name&z=TOKEN` (z-token required)
-  - Humans: drink via POST `action=drink&t=0|0` (NOT `target=`, it's `t=`)
-- **Per-cell drain**: once you've drunk from a target, they're "drained" at that position until they move. Track this to avoid retry loops.
+  - Vampires: drink via GET `?action=drink&target=Name&z=TOKEN` (z-token required). Uniquely named, so dedup drained ones by name.
+  - Humans: drink via POST `action=drink&t=0|0` (NOT `target=`, it's `t=`). **Every** co-located human uses the identical `t=0|0` form — there is NO unique per-human id. So a cell with N humans still yields one drink target; you must drink `t=0|0` repeatedly (re-parsing the grid the drink response returns) until a drink yields 0 pints, which means all humans in the cell are dry.
+- **Per-cell drain**: once you've drunk from a target, they're "drained" at that position until they move. Track this to avoid retry loops. Vampires: track by name. Humans: track with a per-cell `HUMANS_DRAINED` sentinel (they can't be name-deduped) — set it when a drink returns 0 pints. `cellScore`/adjacent-target checks must honour this sentinel, else drained humans keep scoring as "available" and the bot oscillates back onto them, burning AP (the `(172,12) ⇄ (173,11)` loop bug).
 - **Hunters**: enemy vampires with fight links — fight before sweeping.
 - **Z-token**: session CSRF token in all nav links (`?z=...`). Required for GET drink, not for POST moves.
 
 ## HTML quirks (critical for parsing)
 
 - **Current cell**: the center `<td>` with **no** `input[name="x"]`. Contains `<b>VampireName</b>`.
+- **City Limits cells**: `<td class="cityblock">` at map edges ALSO have no `input[name="x"]`. The parser must skip them (by class or `(City Limits)` text) — otherwise every one collapses onto the current-cell key `(cx,cy)` and an empty edge cell clobbers the real current cell, wiping out its human/drink target. This was the "seen but not drunk near the border" bug.
 - **Adjacent cells**: have a move form with `input[name="x"]` and `input[name="y"]`.
 - **Vampire in cell**: `<a href*="viewvamp=Name">` link + drink GET link with `action=drink&target=Name`.
 - **Human in current cell**: `<span class="human">Human</span>` + POST form with `input[name="action" value="drink"]` and `input[name="t" value="0|0"]`.
 - **Human in adjacent cell**: `<span class="human">Human</span>` only — no form.
 - **Human detection**: read `td span.human` directly. Do NOT strip forms/links and scan leftover text — that counts our own `<b>Name</b>` (and bold vampire names) as a phantom human in the current cell.
-- **Position**: median of unique sorted `input[name="x"]` values across all move forms.
+- **Position**: derive from **grid geometry**, NOT the median of visible coordinates. Find the current cell (the `<td>` with no move form that isn't City Limits) and read an orthogonal neighbour's `x`/`y`: right → `(x-1,y)`, left → `(x+1,y)`, below → `(x,y-1)`, above → `(x,y+1)`. Median-of-coordinates is wrong at every map edge — the 3×3 window is asymmetric there (e.g. north edge shows y-values `{0,1}`; the median picks the adjacent row `(182,1)` instead of the true hole `(182,0)`), so moves read as "position unchanged" and the sweeper loops forever reversing direction without spending AP.
 - **AP**: text node `"Action Points: 81/90"` inside a bordered `<div>`.
 - **Anti-bot**: JS call `anti_robot(Array("hex",...), 'pixels', 'fieldName')` — decode pixel data, render as PNG, get user input, POST `action=robot&fieldName=answer`. After clearing, **retry the original request** (gate clears but does not re-authenticate).
 
@@ -43,6 +44,7 @@ Plays as **Vespertine**. TypeScript/Node.js, ESM, `tsx` for dev.
 | `src/session.ts` | axios + tough-cookie HTTP client, cookie persistence, anti-bot solver |
 | `src/bot.ts` | Login, move, drink, fight — all return `PageState` |
 | `src/parser.ts` | Cheerio HTML → `PageState` + `CellInfo` grid |
+| `src/location.ts` | `(x,y)` → street name (e.g. `Zestless & 2nd`) for logs. Odd x → `STREET_NAMES[(x-1)/2]`, odd y → `(y+1)/2`. Verified vs live `span.intersect` labels; NOT city-crawler's off-by-one formula. |
 | `src/hunter.ts` | Sweep logic, target scoring, AP sleep, drained tracking |
 | `src/db.ts` | Optional PostgreSQL logging (`skeleton_hunt_log` table only) |
 | `src/metrics.ts` | Prometheus metrics server on `:8080` |
