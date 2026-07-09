@@ -23,7 +23,7 @@ Plays as **Vespertine**. TypeScript/Node.js, ESM, `tsx` for dev.
 - **Human in current cell**: `<span class="human">Human</span>` + POST form with `input[name="action" value="drink"]` and `input[name="t" value="0|0"]`.
 - **Human in adjacent cell**: `<span class="human">Human</span>` only — no form.
 - **Human detection**: read `td span.human` directly. Do NOT strip forms/links and scan leftover text — that counts our own `<b>Name</b>` (and bold vampire names) as a phantom human in the current cell.
-- **Position**: median of unique sorted `input[name="x"]` values across all move forms.
+- **Position**: derive from **grid geometry**, NOT the median of visible coordinates. Find the current cell (the `<td>` with no move form that isn't City Limits) and read an orthogonal neighbour's `x`/`y`: right → `(x-1,y)`, left → `(x+1,y)`, below → `(x,y-1)`, above → `(x,y+1)`. Median-of-coordinates is wrong at every map edge — the 3×3 window is asymmetric there (e.g. north edge shows y-values `{0,1}`; the median picks the adjacent row `(182,1)` instead of the true hole `(182,0)`), so moves read as "position unchanged" and the sweeper loops forever reversing direction without spending AP.
 - **AP**: text node `"Action Points: 81/90"` inside a bordered `<div>`.
 - **Anti-bot**: JS call `anti_robot(Array("hex",...), 'pixels', 'fieldName')` — decode pixel data, render as PNG, get user input, POST `action=robot&fieldName=answer`. After clearing, **retry the original request** (gate clears but does not re-authenticate).
 
