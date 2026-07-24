@@ -20,6 +20,14 @@ async function main() {
 
   const hunter = new Hunter(bot);
   await hunter.run(WAIT_FOR_FULL_AP);
+
+  // In single-run mode hunter.run() returns once AP is exhausted. The metrics
+  // HTTP server (listening socket) and the pg pool keep Node's event loop alive,
+  // so without an explicit exit the process lingers idle: the Job never completes
+  // and concurrencyPolicy: Forbid blocks the next scheduled hunt until the pod
+  // hits activeDeadlineSeconds (~25h). Exit cleanly so the CronJob can cycle.
+  // (In continuous mode run() never returns, so this line is unreachable.)
+  process.exit(0);
 }
 
 main().catch(err => { console.error(err); process.exit(1); });
