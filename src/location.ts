@@ -6,21 +6,113 @@ import { MAP_SIZE } from './config.js';
 // (Note: this is the game's real 1-based-odd layout, which is off-by-one from
 // city-crawler's border-offset formula — trust the live HTML, not that.)
 export const STREET_NAMES: string[] = [
-  'Aardvark', 'Alder', 'Buzzard', 'Beech', 'Cormorant', 'Cedar', 'Duck', 'Dogwood', 'Eagle', 'Elm',
-  'Ferret', 'Fir', 'Gibbon', 'Gum', 'Haddock', 'Holly', 'Iguana', 'Ivy', 'Jackal', 'Juniper',
-  'Kraken', 'Knotweed', 'Lion', 'Larch', 'Mongoose', 'Maple', 'Nightingale', 'Nettle', 'Octopus', 'Olive',
-  'Pilchard', 'Pine', 'Quail', 'Quince', 'Raven', 'Ragweed', 'Squid', 'Sycamore', 'Tapir', 'Teasel',
-  'Unicorn', 'Umbrella', 'Vulture', 'Vervain', 'Walrus', 'Willow', 'Yak', 'Yew', 'Zebra', 'Zelkova',
-  'Amethyst', 'Anguish', 'Beryl', 'Bleak', 'Cobalt', 'Chagrin', 'Diamond', 'Despair', 'Emerald', 'Ennui',
-  'Flint', 'Fear', 'Gypsum', 'Gloom', 'Hessite', 'Horror', 'Ivory', 'Ire', 'Jet', 'Jaded',
-  'Kyanite', 'Killjoy', 'Lead', 'Lonely', 'Malachite', 'Malaise', 'Nickel', 'Nervous', 'Obsidian', 'Oppression',
-  'Pyrites', 'Pessimism', 'Quartz', 'Qualms', 'Ruby', 'Regret', 'Steel', 'Sorrow', 'Turquoise', 'Torment',
-  'Uranium', 'Unctuous', 'Vauxite', 'Vexation', 'Wulfenite', 'Woe', 'Yuksporite', 'Yearning', 'Zinc', 'Zestless',
+  'Aardvark',
+  'Alder',
+  'Buzzard',
+  'Beech',
+  'Cormorant',
+  'Cedar',
+  'Duck',
+  'Dogwood',
+  'Eagle',
+  'Elm',
+  'Ferret',
+  'Fir',
+  'Gibbon',
+  'Gum',
+  'Haddock',
+  'Holly',
+  'Iguana',
+  'Ivy',
+  'Jackal',
+  'Juniper',
+  'Kraken',
+  'Knotweed',
+  'Lion',
+  'Larch',
+  'Mongoose',
+  'Maple',
+  'Nightingale',
+  'Nettle',
+  'Octopus',
+  'Olive',
+  'Pilchard',
+  'Pine',
+  'Quail',
+  'Quince',
+  'Raven',
+  'Ragweed',
+  'Squid',
+  'Sycamore',
+  'Tapir',
+  'Teasel',
+  'Unicorn',
+  'Umbrella',
+  'Vulture',
+  'Vervain',
+  'Walrus',
+  'Willow',
+  'Yak',
+  'Yew',
+  'Zebra',
+  'Zelkova',
+  'Amethyst',
+  'Anguish',
+  'Beryl',
+  'Bleak',
+  'Cobalt',
+  'Chagrin',
+  'Diamond',
+  'Despair',
+  'Emerald',
+  'Ennui',
+  'Flint',
+  'Fear',
+  'Gypsum',
+  'Gloom',
+  'Hessite',
+  'Horror',
+  'Ivory',
+  'Ire',
+  'Jet',
+  'Jaded',
+  'Kyanite',
+  'Killjoy',
+  'Lead',
+  'Lonely',
+  'Malachite',
+  'Malaise',
+  'Nickel',
+  'Nervous',
+  'Obsidian',
+  'Oppression',
+  'Pyrites',
+  'Pessimism',
+  'Quartz',
+  'Qualms',
+  'Ruby',
+  'Regret',
+  'Steel',
+  'Sorrow',
+  'Turquoise',
+  'Torment',
+  'Uranium',
+  'Unctuous',
+  'Vauxite',
+  'Vexation',
+  'Wulfenite',
+  'Woe',
+  'Yuksporite',
+  'Yearning',
+  'Zinc',
+  'Zestless',
 ];
 
 function ordinal(n: number): string {
-  const t = n % 100, d = n % 10;
-  const suffix = t >= 11 && t <= 13 ? 'th' : d === 1 ? 'st' : d === 2 ? 'nd' : d === 3 ? 'rd' : 'th';
+  const t = n % 100,
+    d = n % 10;
+  const suffix =
+    t >= 11 && t <= 13 ? 'th' : d === 1 ? 'st' : d === 2 ? 'nd' : d === 3 ? 'rd' : 'th';
   return `${n}${suffix}`;
 }
 
@@ -29,7 +121,8 @@ function namedAt(x: number): string {
   if (x < 1) return 'West Limits';
   if (x > MAP_SIZE) return 'East Limits';
   if (x % 2 === 1) return STREET_NAMES[(x - 1) / 2] ?? `x${x}`;
-  const a = STREET_NAMES[(x - 2) / 2], b = STREET_NAMES[x / 2];
+  const a = STREET_NAMES[(x - 2) / 2],
+    b = STREET_NAMES[x / 2];
   return a && b ? `${a}–${b}` : (a ?? b ?? `x${x}`);
 }
 
@@ -48,7 +141,8 @@ function numberedAt(y: number): string {
  * The raw (x,y) is appended for debugging movement and City Limits.
  */
 export function locationName(x: number, y: number): string {
-  const named = namedAt(x), num = numberedAt(y);
+  const named = namedAt(x),
+    num = numberedAt(y);
   const label = x % 2 === 1 && y % 2 === 1 ? `${named} & ${num}` : `${named} @ ${num}`;
   return `${label} (${x},${y})`;
 }

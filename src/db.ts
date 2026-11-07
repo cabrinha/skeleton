@@ -27,6 +27,13 @@ export async function initDb(): Promise<void> {
   console.log('[db] skeleton_hunt_log ready');
 }
 
+export async function closeDb(): Promise<void> {
+  if (pool) {
+    await pool.end();
+    pool = null;
+  }
+}
+
 export async function logEvent(
   event: string,
   data: { target?: string; pints?: number; pos?: { x: number; y: number }; ap?: number } = {},
@@ -36,7 +43,16 @@ export async function logEvent(
   try {
     await db.query(
       'INSERT INTO skeleton_hunt_log (event, target, pints, pos_x, pos_y, ap) VALUES ($1,$2,$3,$4,$5,$6)',
-      [event, data.target ?? null, data.pints ?? null, data.pos?.x ?? null, data.pos?.y ?? null, data.ap ?? null],
+      [
+        event,
+        data.target ?? null,
+        data.pints ?? null,
+        data.pos?.x ?? null,
+        data.pos?.y ?? null,
+        data.ap ?? null,
+      ],
     );
-  } catch { /* best-effort */ }
+  } catch {
+    /* best-effort */
+  }
 }

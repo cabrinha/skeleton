@@ -45,19 +45,28 @@ export function parsePage(html: string, selfName: string): PageState {
   });
 
   // AP — search for text node containing "Action Points:"
-  let ap = 0, maxAp = 90;
-  $('*').contents().each((_, node) => {
-    if (node.type !== 'text') return;
-    const text = (node as unknown as { data: string }).data;
-    const m = text.match(/Action Points:\s*(\d+)\/(\d+)/);
-    if (m) { ap = parseInt(m[1], 10); maxAp = parseInt(m[2], 10); return false; }
-  });
+  let ap = 0,
+    maxAp = 90;
+  $('*')
+    .contents()
+    .each((_, node) => {
+      if (node.type !== 'text') return;
+      const text = (node as unknown as { data: string }).data;
+      const m = text.match(/Action Points:\s*(\d+)\/(\d+)/);
+      if (m) {
+        ap = parseInt(m[1], 10);
+        maxAp = parseInt(m[2], 10);
+        return false;
+      }
+    });
 
   // Game table — find the div with the border that wraps AP + map
-  const apDiv = $('div').filter((_, el) => {
-    const style = $(el).attr('style') ?? '';
-    return style.includes('border') && $(el).text().includes('Action Points:');
-  }).first();
+  const apDiv = $('div')
+    .filter((_, el) => {
+      const style = $(el).attr('style') ?? '';
+      return style.includes('border') && $(el).text().includes('Action Points:');
+    })
+    .first();
   const table = apDiv.find('table').first();
 
   // Position from grid geometry. The map is a 3×3 table; find the cell we occupy (the
@@ -69,28 +78,45 @@ export function parsePage(html: string, selfName: string): PageState {
   // reversing direction without ever spending AP.
   const formX = new Map<string, number>();
   const formY = new Map<string, number>();
-  let curR = -1, curC = -1;
+  let curR = -1,
+    curC = -1;
   table.find('tr').each((r, tr) => {
-    $(tr).children('td').each((c, td) => {
-      const $td = $(td);
-      const xInp = $td.find('input[name="x"]').first();
-      if (xInp.length) {
-        formX.set(`${r},${c}`, parseInt(xInp.val() as string, 10));
-        formY.set(`${r},${c}`, parseInt($td.find('input[name="y"]').first().val() as string, 10));
-      } else {
-        const cls = ($td.attr('class') ?? '').split(' ')[0];
-        if (cls !== 'cityblock' && !/City Limits/i.test($td.text())) { curR = r; curC = c; }
-      }
-    });
+    $(tr)
+      .children('td')
+      .each((c, td) => {
+        const $td = $(td);
+        const xInp = $td.find('input[name="x"]').first();
+        if (xInp.length) {
+          formX.set(`${r},${c}`, parseInt(xInp.val() as string, 10));
+          formY.set(`${r},${c}`, parseInt($td.find('input[name="y"]').first().val() as string, 10));
+        } else {
+          const cls = ($td.attr('class') ?? '').split(' ')[0];
+          if (cls !== 'cityblock' && !/City Limits/i.test($td.text())) {
+            curR = r;
+            curC = c;
+          }
+        }
+      });
   });
-  let cx = 0, cy = 0;
-  const rx = formX.get(`${curR},${curC + 1}`), lx = formX.get(`${curR},${curC - 1}`);
-  const dyv = formY.get(`${curR + 1},${curC}`), uyv = formY.get(`${curR - 1},${curC}`);
-  if (rx !== undefined)      { cx = rx - 1; cy = formY.get(`${curR},${curC + 1}`)!; }
-  else if (lx !== undefined) { cx = lx + 1; cy = formY.get(`${curR},${curC - 1}`)!; }
-  else if (dyv !== undefined) { cx = formX.get(`${curR + 1},${curC}`)!; cy = dyv - 1; }
-  else if (uyv !== undefined) { cx = formX.get(`${curR - 1},${curC}`)!; cy = uyv + 1; }
-  else {
+  let cx = 0,
+    cy = 0;
+  const rx = formX.get(`${curR},${curC + 1}`),
+    lx = formX.get(`${curR},${curC - 1}`);
+  const dyv = formY.get(`${curR + 1},${curC}`),
+    uyv = formY.get(`${curR - 1},${curC}`);
+  if (rx !== undefined) {
+    cx = rx - 1;
+    cy = formY.get(`${curR},${curC + 1}`)!;
+  } else if (lx !== undefined) {
+    cx = lx + 1;
+    cy = formY.get(`${curR},${curC - 1}`)!;
+  } else if (dyv !== undefined) {
+    cx = formX.get(`${curR + 1},${curC}`)!;
+    cy = dyv - 1;
+  } else if (uyv !== undefined) {
+    cx = formX.get(`${curR - 1},${curC}`)!;
+    cy = uyv + 1;
+  } else {
     // Fallback (should never happen — the current cell always has an on-map orthogonal
     // neighbour): median of visible coordinates.
     const xs = [...new Set(formX.values())].sort((a, b) => a - b);
@@ -119,7 +145,9 @@ export function parsePage(html: string, selfName: string): PageState {
       // empty edge cell clobbers the real current cell — wiping out any human /
       // drink target on it. That is why targets got "seen but not drunk" at edges.
       if (cellClass === 'cityblock' || /City Limits/i.test($td.text())) return;
-      x = cx; y = cy; isCurrent = true;
+      x = cx;
+      y = cy;
+      isCurrent = true;
     }
 
     const intersectionName = $td.find('span.intersect').first().text().trim() || null;
@@ -188,11 +216,24 @@ export function parsePage(html: string, selfName: string): PageState {
     // (and any bold vampire name) as a phantom human in the current cell.
     const humans: string[] = [];
     $td.find('span.human').each((_, el) => {
-      const t = $(el).text().replace(/\(\d+\)/g, '').replace(/[()]/g, '').trim();
+      const t = $(el)
+        .text()
+        .replace(/\(\d+\)/g, '')
+        .replace(/[()]/g, '')
+        .trim();
       if (t) humans.push(t);
     });
 
-    grid.set(`${x},${y}`, { coord: { x, y }, isCurrent, cellClass, intersectionName, vampires, humans, drinkTargets, hunters });
+    grid.set(`${x},${y}`, {
+      coord: { x, y },
+      isCurrent,
+      cellClass,
+      intersectionName,
+      vampires,
+      humans,
+      drinkTargets,
+      hunters,
+    });
   });
 
   return { loggedIn, ap, maxAp, position: { x: cx, y: cy }, zToken, grid };

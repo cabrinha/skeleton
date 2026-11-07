@@ -37,13 +37,19 @@ export class Bot {
     // 1. Env-injected cookies (Docker / K8s)
     if (this.session.injectEnvCookies()) {
       const state = await this.fetchPage();
-      if (state.loggedIn) { console.log(`[+] Session active as ${this.name} (env cookies)`); return true; }
+      if (state.loggedIn) {
+        console.log(`[+] Session active as ${this.name} (env cookies)`);
+        return true;
+      }
     }
 
     // 2. Saved cookie file
     if (this.session.loadCookies()) {
       const state = await this.fetchPage();
-      if (state.loggedIn) { console.log(`[+] Session active as ${this.name} (cookie file)`); return true; }
+      if (state.loggedIn) {
+        console.log(`[+] Session active as ${this.name} (cookie file)`);
+        return true;
+      }
     }
 
     // 3. Username / password
@@ -63,7 +69,10 @@ export class Bot {
     return this.postAction({ action: 'move', x: String(x), y: String(y) });
   }
 
-  async drink(target: DrinkTarget, zToken: string | null): Promise<{ state: PageState; pints: number }> {
+  async drink(
+    target: DrinkTarget,
+    zToken: string | null,
+  ): Promise<{ state: PageState; pints: number }> {
     let html: string;
     if (target.method === 'get') {
       const params: Record<string, string> = { action: 'drink', ...target.params };
@@ -74,9 +83,14 @@ export class Bot {
     }
     if (html.includes('anti_robot')) {
       await this.session.solveAntibot(html);
-      html = target.method === 'get'
-        ? await this.session.get({ action: 'drink', ...target.params, ...(zToken ? { z: zToken } : {}) })
-        : await this.session.post(target.params);
+      html =
+        target.method === 'get'
+          ? await this.session.get({
+              action: 'drink',
+              ...target.params,
+              ...(zToken ? { z: zToken } : {}),
+            })
+          : await this.session.post(target.params);
     }
     const state = parsePage(html, this.name);
     this.lastState = state;
@@ -89,7 +103,9 @@ export class Bot {
     return this.postAction(fields);
   }
 
-  get state(): PageState | null { return this.lastState; }
+  get state(): PageState | null {
+    return this.lastState;
+  }
 }
 
 export function createBot(session: Session): Bot {

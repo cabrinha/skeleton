@@ -9,10 +9,10 @@ import { AP_SECS_PER_TICK, MAP_SIZE, SWEEP_DELAY_MS, SINGLE_RUN } from './config
 // all share the POST form `t=0|0`, so they have no unique name to dedup on — we
 // track "this cell's humans are drained" as a whole instead. Prefixed with a NUL
 // so it can never collide with a real vampire name.
-const HUMANS_DRAINED = '\u0000humans-drained';
+export const HUMANS_DRAINED = '\u0000humans-drained';
 
 export class Hunter {
-  private dirX = 1;  // +1 = east, -1 = west
+  private dirX = 1; // +1 = east, -1 = west
   private dirY = -1; // -1 = NE (y decreasing), +1 = SE (y increasing)
   private drained = new Map<string, Set<string>>(); // "x,y" → drained vampire names + HUMANS_DRAINED
 
@@ -31,8 +31,13 @@ export class Hunter {
 
   private nextSweepPos(x: number, y: number): { x: number; y: number } {
     let ny = y + this.dirY;
-    if (ny < 1)        { this.dirY = 1;  ny = y + 1; }
-    else if (ny > MAP_SIZE) { this.dirY = -1; ny = y - 1; }
+    if (ny < 1) {
+      this.dirY = 1;
+      ny = y + 1;
+    } else if (ny > MAP_SIZE) {
+      this.dirY = -1;
+      ny = y - 1;
+    }
     return { x: x + this.dirX, y: ny };
   }
 
@@ -45,7 +50,7 @@ export class Hunter {
 
   private async drinkAll(state: PageState): Promise<void> {
     let cur = state;
-    const { x, y } = cur.position;      // drinking never moves us
+    const { x, y } = cur.position; // drinking never moves us
     const drained = this.drainedAt(x, y);
     const key = `${x},${y}`;
 
@@ -91,8 +96,13 @@ export class Hunter {
     for (const hunter of cell.hunters) {
       this.log(`Fighting hunter '${hunter}'`);
       const next = await this.bot.fight(hunter, state.zToken);
-      const killed = next.grid.get(`${state.position.x},${state.position.y}`)?.hunters.includes(hunter) === false;
-      if (killed) { metrics.huntersKilled.inc(); this.log(`  → killed`); }
+      const killed =
+        next.grid.get(`${state.position.x},${state.position.y}`)?.hunters.includes(hunter) ===
+        false;
+      if (killed) {
+        metrics.huntersKilled.inc();
+        this.log(`  → killed`);
+      }
     }
   }
 
@@ -117,7 +127,11 @@ export class Hunter {
     }
   }
 
-  private async sleepUpdatingMetrics(totalSecs: number, apStart: number, maxAp: number): Promise<void> {
+  private async sleepUpdatingMetrics(
+    totalSecs: number,
+    apStart: number,
+    maxAp: number,
+  ): Promise<void> {
     const started = Date.now();
     while (true) {
       const elapsed = (Date.now() - started) / 1000;
@@ -148,11 +162,14 @@ export class Hunter {
   private logGrid(state: PageState): void {
     const rows: string[] = [];
     for (const cell of state.grid.values()) {
-      const h = cell.humans.length, v = cell.vampires.length;
+      const h = cell.humans.length,
+        v = cell.vampires.length;
       if (!h && !v) continue;
       const { h: avH, v: avV } = this.availableTargets(cell);
       const here = cell.isCurrent ? '*' : ' ';
-      rows.push(`  ${here} ${locationName(cell.coord.x, cell.coord.y)}  ${v}v/${h}h  (${avV}v/${avH}h available)`);
+      rows.push(
+        `  ${here} ${locationName(cell.coord.x, cell.coord.y)}  ${v}v/${h}h  (${avV}v/${avH}h available)`,
+      );
     }
     if (rows.length) this.log('Visible:\n' + rows.join('\n'));
   }
@@ -196,7 +213,8 @@ export class Hunter {
     const target = this.findBestAdjacentTarget(state, x, y);
     if (target) {
       const { h: avH, v: avV } = this.availableTargets(target);
-      const tx = target.coord.x, ty = target.coord.y;
+      const tx = target.coord.x,
+        ty = target.coord.y;
       this.log(`Best target ${locationName(tx, ty)} [${avH}h/${avV}v] — moving there`);
       const next = await this.bot.move(tx, ty);
       metrics.movesTotal.inc();
@@ -244,11 +262,18 @@ export class Hunter {
 
       if (!state.loggedIn) {
         this.log('Session expired — re-authenticating');
-        if (!await this.bot.login()) { this.log('Re-login failed, stopping'); return; }
+        if (!(await this.bot.login())) {
+          this.log('Re-login failed, stopping');
+          return;
+        }
         continue;
       }
 
-      const { ap, maxAp, position: { x, y } } = state;
+      const {
+        ap,
+        maxAp,
+        position: { x, y },
+      } = state;
       metrics.ap.set(ap);
       metrics.apMax.set(maxAp);
       metrics.posX.set(x);
@@ -258,7 +283,10 @@ export class Hunter {
 
       if (ap <= 0) {
         metrics.hunting.set(0);
-        if (SINGLE_RUN) { this.log('AP exhausted — done (single-run mode)'); return; }
+        if (SINGLE_RUN) {
+          this.log('AP exhausted — done (single-run mode)');
+          return;
+        }
         const waitSecs = maxAp * AP_SECS_PER_TICK;
         const wake = new Date(Date.now() + waitSecs * 1000).toTimeString().slice(0, 5);
         this.log(`AP exhausted — sleeping until full (~${wake})`);

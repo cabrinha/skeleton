@@ -16,11 +16,18 @@ export class Session {
   constructor() {
     this.jar = new CookieJar();
     // Spoof a real Safari browser UA so requests blend in with normal web traffic.
-    const userAgent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Safari/605.1.15';
-    const instance = axios.create({ headers: { 'User-Agent': userAgent }, maxRedirects: 5, timeout: 30_000 });
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (instance.defaults as any).jar = this.jar;
-    this.client = wrapper(instance);
+    const userAgent =
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Safari/605.1.15';
+    // axios-cookiejar-support v7 takes the jar via request config (it augments
+    // AxiosRequestConfig with `jar`), so the old `(defaults as any).jar` cast is gone.
+    this.client = wrapper(
+      axios.create({
+        jar: this.jar,
+        headers: { 'User-Agent': userAgent },
+        maxRedirects: 5,
+        timeout: 30_000,
+      }),
+    );
   }
 
   async get(params: Record<string, string> = {}): Promise<string> {
@@ -34,10 +41,11 @@ export class Session {
   async post(fields: Record<string, string>): Promise<string> {
     const body = new URLSearchParams(fields).toString();
     const resp = await this.withRetry(
-      () => this.client.post<string>(BASE_URL, body, {
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        responseType: 'text',
-      }),
+      () =>
+        this.client.post<string>(BASE_URL, body, {
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          responseType: 'text',
+        }),
       `POST ${fields.action ?? '(form)'}`,
     );
     return resp.data;
@@ -57,7 +65,9 @@ export class Session {
         lastErr = err;
         if (attempt === maxAttempts || !isTransientError(err)) throw err;
         const backoffMs = Math.min(15_000, 1_000 * 2 ** (attempt - 1)); // 1s, 2s, 4s
-        console.warn(`[net] ${label} failed (attempt ${attempt}/${maxAttempts}): ${describeError(err)} — retrying in ${backoffMs}ms`);
+        console.warn(
+          `[net] ${label} failed (attempt ${attempt}/${maxAttempts}): ${describeError(err)} — retrying in ${backoffMs}ms`,
+        );
         await sleep(backoffMs);
       }
     }
@@ -73,7 +83,10 @@ export class Session {
   loadCookies(): boolean {
     if (!existsSync(COOKIE_FILE)) return false;
     try {
-      const data = JSON.parse(readFileSync(COOKIE_FILE, 'utf-8')) as Array<{ key: string; value: string }>;
+      const data = JSON.parse(readFileSync(COOKIE_FILE, 'utf-8')) as Array<{
+        key: string;
+        value: string;
+      }>;
       for (const { key, value } of data) {
         this.jar.setCookieSync(`${key}=${value}`, 'https://quiz.ravenblack.net');
       }
@@ -97,8 +110,21 @@ export class Session {
   async solveAntibot(html: string): Promise<void> {
     const m = html.match(/anti_robot\(Array\(([^)]+)\)\s*,\s*'([^']+)'\s*,\s*'([^']+)'\s*\)/);
     if (!m) return;
+
+    // Headless guard: solving the challenge needs a human to read the rendered image
+    // and type the answer on stdin. In a non-interactive deployment (Docker / K8s
+    // CronJob, no TTY) promptUser() would block forever — the pod would hang idle
+    // until activeDeadlineSeconds (~25h) instead of failing. Fail fast with a clear
+    // message so the Job errors out and can be retried or cleared manually.
+    if (!process.stdin.isTTY) {
+      throw new Error(
+        'anti-bot challenge encountered but no interactive TTY is available to solve it (headless run). ' +
+          'Re-run interactively to clear the gate, or inject a pre-authenticated session cookie (VAMPIRE_COOKIE_PQ/IP).',
+      );
+    }
+
     const rawColors = [...m[1].matchAll(/"([0-9a-f]{6})"/g)].map(x => x[1]);
-    const pixelStr  = m[2];
+    const pixelStr = m[2];
     const fieldName = m[3];
 
     const imgPath = this.renderAntibotImage(rawColors, pixelStr);
@@ -111,7 +137,9 @@ export class Session {
   }
 
   private renderAntibotImage(colors: string[], pixelStr: string): string {
-    const COLS = 96, CELL_W = 2, CELL_H = 4;
+    const COLS = 96,
+      CELL_W = 2,
+      CELL_H = 4;
     const rows = Math.floor(pixelStr.length / COLS);
     const png = new PNG({ width: COLS * CELL_W, height: rows * CELL_H });
 
@@ -121,12 +149,15 @@ export class Session {
       const r = parseInt(hex.slice(0, 2), 16);
       const g = parseInt(hex.slice(2, 4), 16);
       const b = parseInt(hex.slice(4, 6), 16);
-      const col = i % COLS, row = Math.floor(i / COLS);
+      const col = i % COLS,
+        row = Math.floor(i / COLS);
       for (let dy = 0; dy < CELL_H; dy++) {
         for (let dx = 0; dx < CELL_W; dx++) {
           const idx = ((row * CELL_H + dy) * COLS * CELL_W + (col * CELL_W + dx)) * 4;
-          png.data[idx] = r; png.data[idx + 1] = g;
-          png.data[idx + 2] = b; png.data[idx + 3] = 255;
+          png.data[idx] = r;
+          png.data[idx + 1] = g;
+          png.data[idx + 2] = b;
+          png.data[idx + 3] = 255;
         }
       }
     }
@@ -139,14 +170,23 @@ export class Session {
   private promptUser(question: string): Promise<string> {
     const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
     return new Promise(resolve => {
-      rl.question(question, answer => { rl.close(); resolve(answer.trim()); });
+      rl.question(question, answer => {
+        rl.close();
+        resolve(answer.trim());
+      });
     });
   }
 }
 
 const TRANSIENT_CODES = new Set([
-  'ETIMEDOUT', 'ECONNRESET', 'ECONNREFUSED', 'ECONNABORTED',
-  'ENOTFOUND', 'EAI_AGAIN', 'EPIPE', 'ERR_NETWORK',
+  'ETIMEDOUT',
+  'ECONNRESET',
+  'ECONNREFUSED',
+  'ECONNABORTED',
+  'ENOTFOUND',
+  'EAI_AGAIN',
+  'EPIPE',
+  'ERR_NETWORK',
 ]);
 
 // True for retryable failures. Walks the error chain (axios wraps causes, and
@@ -157,7 +197,12 @@ function isTransientError(err: unknown): boolean {
   const statuses: number[] = [];
   const visit = (e: unknown, depth: number): void => {
     if (!e || typeof e !== 'object' || depth > 4) return;
-    const o = e as { code?: unknown; response?: { status?: number }; errors?: unknown[]; cause?: unknown };
+    const o = e as {
+      code?: unknown;
+      response?: { status?: number };
+      errors?: unknown[];
+      cause?: unknown;
+    };
     if (typeof o.code === 'string') codes.push(o.code);
     if (typeof o.response?.status === 'number') statuses.push(o.response.status);
     if (Array.isArray(o.errors)) o.errors.forEach(x => visit(x, depth + 1));
@@ -169,7 +214,7 @@ function isTransientError(err: unknown): boolean {
 
 function describeError(err: unknown): string {
   const o = err as { code?: string; response?: { status?: number }; message?: string };
-  return o?.code ?? (o?.response?.status ? `HTTP ${o.response.status}` : o?.message ?? 'unknown');
+  return o?.code ?? (o?.response?.status ? `HTTP ${o.response.status}` : (o?.message ?? 'unknown'));
 }
 
 function sleep(ms: number): Promise<void> {
